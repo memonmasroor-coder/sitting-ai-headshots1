@@ -8,12 +8,24 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const training = await replicate.trainings.get(trainingId);
+    // =========================================================
+    // MOCK STATUS START (Forces a successful state for free testing)
+    // =========================================================
     return NextResponse.json({
-      status: training.status, // starting | processing | succeeded | failed | canceled
-      version: training.output?.version ?? null,
-      error: training.error ?? null,
+      status: "succeeded", 
+      version: "mock_version_string",
+      error: null
     });
+    // =========================================================
+    // MOCK STATUS END
+    // =========================================================
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message || "Could not fetch status" },
+      { status: 500 }
+    );
+  }
+}
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Could not fetch status." },
