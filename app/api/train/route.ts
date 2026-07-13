@@ -48,10 +48,11 @@ export async function POST(req: NextRequest) {
       i++;
     }
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    const zipBytes = new Uint8Array(zipBuffer);
 
     // Upload the zip to Replicate's file storage so the trainer can fetch it
     const uploadedZip = await replicate.files.create(
-      new Blob([zipBuffer], { type: "application/zip" }) as any,
+      new Blob([zipBytes], { type: "application/zip" }) as any,
       { filename: "training-photos.zip" } as any
     );
     const zipUrl = uploadedZip.urls.get;
