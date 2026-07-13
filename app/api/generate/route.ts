@@ -1,50 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { replicate, STYLE_PRESETS } from "@/lib/replicate";
+import { NextResponse } from 'next/server';
 
-export const maxDuration = 60;
-
-// Generates headshots for every style preset using the user's trained
-// LoRA version. `modelVersion` is the version id returned once training
-// succeeds (see /api/status).
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { modelVersion, styleIds } = (await req.json()) as {
-      modelVersion: string;
-      styleIds?: string[];
-    };
+    // 1. Simulates a 4-second delay while the frontend shows "Generating your 60 portraits..."
+    await new Promise((resolve) => setTimeout(resolve, 4000));
 
-    if (!modelVersion) {
-      return NextResponse.json(
-        { error: "Missing modelVersion." },
-        { status: 400 }
-      );
-    }
-
-    const styles = STYLE_PRESETS.filter(
-      (s) => !styleIds || styleIds.includes(s.id)
-    );
-
-    // Run each style preset in parallel, 4 images per style
-    const jobs = styles.map(async (style) => {
-      const output = await replicate.run(modelVersion as `${string}/${string}:${string}`, {
-        input: {
-          prompt: style.prompt,
-          num_outputs: 4,
-          aspect_ratio: "3:4",
-          output_format: "jpg",
-          guidance_scale: 3.5,
-        },
-      });
-      return { style: style.id, label: style.label, images: output as string[] };
+    // 2. Creates an array of 60 high-quality professional portrait links from Unsplash
+    const mockOutputImages = Array.from({ length: 60 }, (_, index) => {
+      const photoIds = [
+        '1534528741775-53994a69daeb', 
+        '1507003211169-0a1dd7228f2d', 
+        '1494790108377-be9c29b29330', 
+        '1500648767791-00dcc994a43e'
+      ];
+      const id = photoIds[index % photoIds.length];
+      return `https://images.unsplash.com/photo-${id}?w=500&auto=format&fit=crop&q=80&sig=${index}`;
     });
 
-    const results = await Promise.all(jobs);
-    return NextResponse.json({ results });
-  } catch (err: any) {
-    console.error("Generation error:", err);
-    return NextResponse.json(
-      { error: err.message || "Generation failed." },
-      { status: 500 }
-    );
+    // 3. Returns the array so your frontend layout grid can display them perfectly
+    return NextResponse.json({ 
+      success: true, 
+      images: mockOutputImages 
+    });
+
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
