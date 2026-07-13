@@ -7,6 +7,33 @@ type Phase = "collecting" | "uploading" | "training" | "generating" | "error";
 
 const MIN_PHOTOS = 6;
 const MAX_PHOTOS = 25;
+const MAX_DIMENSION = 1600; // px, longest side
+const JPEG_QUALITY = 0.82;
+
+// Resizes/compresses an image file in the browser before upload, so large
+// phone-camera photos (often 3-10MB each) don't blow past serverless
+// request size limits when several are sent together.
+async function compressImage(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const width = Math.round(bitmap.width * scale);
+  const height = Math.round(bitmap.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file; // fall back to original if canvas unsupported
+  ctx.drawImage(bitmap, 0, 0, width, height);
+
+  const blob: Blob | null = await new Promise((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)
+  );
+  if (!blob) return file;
+
+  const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  return new File([blob], newName, { type: "image/jpeg" });
+}
 
 export default function UploadPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -32,14 +59,28 @@ export default function UploadPage() {
     setErrorMsg("");
     setPhase("uploading");
     try {
+      setProgressNote("Preparing your photos...");
+      const compressed = await Promise.all(files.map(compressImage));
+
       const formData = new FormData();
-      files.forEach((f) => formData.append("photos", f));
+      compressed.forEach((f) => formData.append("photos", f));
 
       const trainRes = await fetch("/api/train", {
         method: "POST",
         body: formData,
       });
-      const trainData = await trainRes.json();
+
+      let trainData: any;
+      const rawText = await trainRes.text();
+      try {
+        trainData = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          trainRes.status === 413
+            ? "Your photos were too large even after compression. Try uploading fewer at once."
+            : `Server error (${trainRes.status}). Please try again in a moment.`
+        );
+      }
       if (!trainRes.ok) throw new Error(trainData.error || "Upload failed.");
 
       setPhase("training");
