@@ -21,7 +21,43 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+         const formData = await req.formData();
+    const files = formData.getAll("photos");
 
+    if (!files || files.length < 6) {
+      return NextResponse.json(
+        { error: "Please upload at least 6 photos" },
+        { status: 400 }
+      );
+    }
+
+    // =========================================================
+    // MOCK TRAINING START (Replaced Replicate token logic)
+    // =========================================================
+    
+    // 1. Simulates a 3-second processing delay so your app's loading spinner works
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // 2. Returns a fake success status to move the user to the generation screen
+    return NextResponse.json({
+      success: true,
+      id: "mock-training-id-12345",
+      status: "succeeded", 
+      version: "mock_version_string"
+    });
+    
+    // =========================================================
+    // MOCK TRAINING END
+    // =========================================================
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Something went wrong" },
+      { status: 500 }
+    );
+  }
+}
+
+    
     const formData = await req.formData();
     const files = formData.getAll("photos") as File[];
 
